@@ -4,654 +4,1204 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TabbyAnnounce</title>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  :root {
-    --bg:          #0F172A;
-    --surface:     #1E293B;
-    --surface2:    #334155;
-    --border:      #475569;
-    --fg:          #F8FAFC;
-    --muted:       #94A3B8;
-    --accent:      #22C55E;
-    --accent-dim:  #16A34A;
-    --danger:      #EF4444;
-    --danger-dim:  #B91C1C;
-    --warn:        #F59E0B;
-    --radius:      4px;
-    --font:        'Space Mono', 'Courier New', monospace;
-  }
+:root {
+  --bg:        #080E1A;
+  --surface:   #0F172A;
+  --surface2:  #1E293B;
+  --surface3:  #334155;
+  --border:    #1E293B;
+  --border2:   #334155;
+  --fg:        #F1F5F9;
+  --fg2:       #94A3B8;
+  --fg3:       #475569;
+  --accent:    #22C55E;
+  --accent2:   #16A34A;
+  --amber:     #F59E0B;
+  --danger:    #EF4444;
+  --purple:    #8B5CF6;
+  --r:         6px;
+  --r-lg:      10px;
+  --font:      'Inter', system-ui, sans-serif;
+  --sidebar-w: 224px;
+  --header-h:  52px;
+}
 
-  html, body {
-    height: 100%;
-    background: var(--bg);
-    color: var(--fg);
-    font-family: var(--font);
-    font-size: 13px;
-    line-height: 1.6;
-  }
+html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 13px; line-height: 1.5; }
 
-  /* ── Layout ── */
-  .shell {
-    max-width: 960px;
-    margin: 0 auto;
-    padding: 28px 20px 60px;
-  }
+/* ── Canvas bg ── */
+#dot-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: 0.6; }
 
-  /* ── Header ── */
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-bottom: 20px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 28px;
-  }
+/* ── Shell ── */
+.app { display: flex; height: 100vh; position: relative; z-index: 1; }
 
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
+/* ── Sidebar ── */
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 
-  .logo svg {
-    width: 28px;
-    height: 28px;
-    flex-shrink: 0;
-  }
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
 
-  .logo-text {
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    color: var(--fg);
-  }
+.sidebar-logo svg { width: 22px; height: 22px; flex-shrink: 0; }
 
-  .logo-text span {
-    color: var(--accent);
-  }
+.logo-name { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; }
+.logo-name span { color: var(--accent); }
 
-  /* ── Status badge ── */
-  .status-badge {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    font-size: 11px;
-    color: var(--muted);
-    padding: 5px 10px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface);
-  }
+.sidebar-section { flex-shrink: 0; }
 
-  .status-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--border);
-    flex-shrink: 0;
-    transition: background 0.3s;
-  }
+.sidebar-label {
+  padding: 14px 16px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg3);
+}
 
-  .status-dot.online  { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
-  .status-dot.offline { background: var(--danger); }
+.server-list { overflow-y: auto; max-height: 220px; }
 
-  /* ── Section ── */
-  .section {
-    margin-bottom: 32px;
-  }
+.server-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  cursor: pointer;
+  border-radius: var(--r);
+  margin: 1px 8px;
+  transition: background 0.15s;
+  position: relative;
+}
 
-  .section-title {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 12px;
-  }
+.server-item:hover { background: var(--surface2); }
+.server-item.active { background: rgba(34,197,94,0.08); }
+.server-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 60%;
+  background: var(--accent);
+  border-radius: 0 2px 2px 0;
+}
 
-  /* ── Add form ── */
-  .add-form {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 16px;
-  }
+.server-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: var(--surface3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--fg2);
+}
 
-  .form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 10px;
-  }
+.server-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
-  .form-full {
-    margin-bottom: 10px;
-  }
+.server-info { min-width: 0; flex: 1; }
+.server-name { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.server-members { font-size: 10px; color: var(--fg3); }
 
-  label {
-    display: block;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 5px;
-  }
+.server-empty { padding: 12px 16px; font-size: 11px; color: var(--fg3); }
 
-  input, textarea {
-    width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--fg);
-    font-family: var(--font);
-    font-size: 12px;
-    padding: 7px 10px;
-    outline: none;
-    transition: border-color 0.15s;
-    resize: none;
-  }
+/* Add server button */
+.add-server-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  margin: 4px 8px;
+  cursor: pointer;
+  border-radius: var(--r);
+  border: 1px dashed var(--border2);
+  color: var(--fg3);
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.15s;
+  background: none;
+  width: calc(100% - 16px);
+  font-family: var(--font);
+}
+.add-server-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(34,197,94,0.04); }
 
-  input:focus, textarea:focus {
-    border-color: var(--accent);
-  }
+.add-server-icon {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--surface2);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
 
-  input::placeholder, textarea::placeholder {
-    color: var(--border);
-  }
+/* Channel list */
+.channel-list { overflow-y: auto; flex: 1; padding-bottom: 8px; }
 
-  textarea { height: 64px; }
+.channel-category { padding: 10px 16px 4px; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg3); }
 
-  .form-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-  }
+.channel-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px 5px 20px;
+  margin: 1px 8px;
+  border-radius: var(--r);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--fg2);
+  transition: all 0.12s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.channel-item:hover { background: var(--surface2); color: var(--fg); }
+.channel-item.active { background: rgba(34,197,94,0.08); color: var(--accent); }
 
-  /* ── Buttons ── */
-  button {
-    font-family: var(--font);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    border: none;
-    border-radius: var(--radius);
-    padding: 7px 14px;
-    cursor: pointer;
-    transition: background 0.15s, opacity 0.15s;
-  }
+.channel-hash { color: var(--fg3); font-size: 13px; flex-shrink: 0; font-weight: 400; }
+.channel-item.active .channel-hash { color: var(--accent); }
 
-  .btn-primary {
-    background: var(--accent);
-    color: #000;
-  }
-  .btn-primary:hover { background: var(--accent-dim); }
+.channel-empty { padding: 10px 16px; font-size: 11px; color: var(--fg3); }
 
-  .btn-ghost {
-    background: transparent;
-    color: var(--muted);
-    border: 1px solid var(--border);
-  }
-  .btn-ghost:hover { color: var(--fg); border-color: var(--fg); }
+/* ── Main ── */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
-  .btn-danger {
-    background: transparent;
-    color: var(--danger);
-    border: 1px solid transparent;
-    padding: 4px 8px;
-    font-size: 11px;
-  }
-  .btn-danger:hover { background: rgba(239,68,68,0.1); border-color: var(--danger); }
+/* Header */
+.header {
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: rgba(8,14,26,0.8);
+  backdrop-filter: blur(8px);
+}
 
-  button:disabled { opacity: 0.4; cursor: not-allowed; }
+.header-left { display: flex; align-items: center; gap: 12px; }
 
-  /* ── Table ── */
-  .table-wrap {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-  }
+.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fg2); }
+.breadcrumb-sep { color: var(--fg3); }
+.breadcrumb-active { color: var(--fg); font-weight: 500; }
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-  }
+.header-right { display: flex; align-items: center; gap: 10px; }
 
-  thead tr {
-    background: var(--bg);
-  }
+.status-pill {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  font-size: 11px;
+  color: var(--fg2);
+}
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--fg3); flex-shrink: 0; transition: all 0.3s; }
+.status-dot.online { background: var(--accent); box-shadow: 0 0 8px rgba(34,197,94,0.5); }
+.status-dot.offline { background: var(--danger); }
 
-  th {
-    padding: 9px 12px;
-    text-align: left;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--muted);
-    border-bottom: 1px solid var(--border);
-    white-space: nowrap;
-  }
+/* ── Calendar area ── */
+.calendar-wrap {
+  flex: 1;
+  overflow: hidden;
+  padding: 16px 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 
-  td {
-    padding: 10px 12px;
-    border-bottom: 1px solid rgba(71,85,105,0.4);
-    vertical-align: top;
-    font-size: 12px;
-    max-width: 0;
-  }
+.cal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
 
-  tr:last-child td { border-bottom: none; }
+.cal-nav { display: flex; align-items: center; gap: 8px; }
 
-  tr:hover td { background: rgba(255,255,255,0.02); }
+.cal-title { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; min-width: 160px; }
 
-  .col-channel  { width: 22%; }
-  .col-schedule { width: 18%; }
-  .col-message  { width: 38%; }
-  .col-status   { width: 16%; }
-  .col-actions  { width: 6%; text-align: right; }
+.btn-icon {
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  cursor: pointer;
+  color: var(--fg2);
+  transition: all 0.15s;
+  font-size: 14px;
+}
+.btn-icon:hover { background: var(--surface3); color: var(--fg); }
 
-  .cell-truncate {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+.cal-view-tabs { display: flex; gap: 4px; }
 
-  .cell-channel {
-    color: var(--accent);
-    font-size: 11px;
-  }
+.view-tab {
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font);
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  cursor: pointer;
+  color: var(--fg2);
+  transition: all 0.15s;
+}
+.view-tab.active { background: var(--accent); border-color: var(--accent); color: #000; }
+.view-tab:hover:not(.active) { color: var(--fg); }
 
-  .cell-schedule {
-    color: var(--warn);
-    font-size: 11px;
-    white-space: nowrap;
-  }
+.btn-new {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--r);
+  font-size: 12px; font-weight: 600;
+  font-family: var(--font);
+  color: #000;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-new:hover { background: var(--accent2); }
 
-  .cell-message {
-    color: var(--fg);
-    white-space: pre-wrap;
-    word-break: break-word;
-    max-height: 60px;
-    overflow: hidden;
-  }
+#calendar-container { flex: 1; overflow: hidden; min-height: 0; }
 
-  .cell-status {
-    font-size: 10px;
-    color: var(--muted);
-    white-space: nowrap;
-  }
+/* FullCalendar overrides */
+.fc { height: 100%; font-family: var(--font) !important; }
+.fc-theme-standard td, .fc-theme-standard th { border-color: var(--border) !important; }
+.fc-theme-standard .fc-scrollgrid { border-color: var(--border) !important; }
+.fc .fc-col-header-cell-cushion { color: var(--fg2) !important; font-size: 11px !important; font-weight: 600 !important; text-transform: uppercase !important; letter-spacing: 0.05em !important; text-decoration: none !important; padding: 8px 4px !important; }
+.fc .fc-daygrid-day-number { color: var(--fg2) !important; font-size: 12px !important; text-decoration: none !important; padding: 4px 8px !important; }
+.fc .fc-daygrid-day.fc-day-today { background: rgba(34,197,94,0.04) !important; }
+.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number { color: var(--accent) !important; font-weight: 700 !important; }
+.fc-daygrid-day:hover { background: rgba(255,255,255,0.02) !important; cursor: pointer; }
+.fc .fc-daygrid-day-frame { min-height: 80px !important; }
+.fc-event { border: none !important; border-radius: 4px !important; font-size: 10px !important; font-weight: 500 !important; padding: 1px 4px !important; cursor: pointer !important; }
+.fc-event-once { background: rgba(34,197,94,0.15) !important; color: var(--accent) !important; border-left: 2px solid var(--accent) !important; }
+.fc-event-recurring { background: rgba(245,158,11,0.12) !important; color: var(--amber) !important; border-left: 2px solid var(--amber) !important; }
+.fc-event-time { display: none !important; }
+.fc .fc-timegrid-slot { height: 32px !important; }
+.fc .fc-timegrid-slot-label { color: var(--fg3) !important; font-size: 10px !important; }
+.fc-bg-event { opacity: 0.08 !important; }
+.fc-highlight { background: rgba(34,197,94,0.08) !important; }
+.fc-button { display: none !important; }
+.fc-toolbar { display: none !important; }
+.fc-scrollgrid-sync-inner { background: var(--surface) !important; }
+.fc-daygrid-body, .fc-scrollgrid-section-body { background: var(--surface) !important; }
+.fc-col-header { background: var(--bg) !important; }
 
-  .cell-status.posted {
-    color: var(--accent);
-  }
+/* ── Upcoming strip ── */
+.upcoming-strip {
+  display: flex;
+  gap: 8px;
+  padding: 10px 0 14px;
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+.upcoming-strip::-webkit-scrollbar { height: 3px; }
+.upcoming-strip::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
 
-  /* ── Empty state ── */
-  .empty {
-    padding: 40px 20px;
-    text-align: center;
-    color: var(--muted);
-  }
+.upcoming-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-size: 11px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.upcoming-chip:hover { border-color: var(--accent); }
+.upcoming-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.upcoming-dot.once { background: var(--accent); }
+.upcoming-dot.recurring { background: var(--amber); }
+.upcoming-time { color: var(--fg3); }
 
-  .empty-cat {
-    font-size: 28px;
-    margin-bottom: 8px;
-    line-height: 1;
-    /* using text since no emoji rule is for icons, cat here is decorative flavor */
-    filter: grayscale(1);
-    opacity: 0.4;
-  }
+/* ── Modals ── */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s;
+}
+.modal-backdrop.open { opacity: 1; pointer-events: all; }
 
-  .empty p {
-    font-size: 12px;
-  }
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--r-lg);
+  padding: 24px;
+  width: 480px;
+  max-width: calc(100vw - 32px);
+  max-height: 90vh;
+  overflow-y: auto;
+  transform: scale(0.96) translateY(8px);
+  transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
+}
+.modal-backdrop.open .modal { transform: scale(1) translateY(0); }
 
-  /* ── Loading ── */
-  .loading-row td {
-    padding: 20px;
-    text-align: center;
-    color: var(--muted);
-    font-size: 11px;
-  }
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.modal-title { font-size: 15px; font-weight: 600; }
+.modal-close {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface2); border: none; border-radius: var(--r);
+  cursor: pointer; color: var(--fg2); font-size: 16px; font-family: var(--font);
+  transition: all 0.15s;
+}
+.modal-close:hover { background: var(--surface3); color: var(--fg); }
 
-  /* ── Toast ── */
-  #toast-container {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    z-index: 1000;
-    pointer-events: none;
-  }
+/* Form */
+.form-group { margin-bottom: 16px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+label { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: var(--fg2); margin-bottom: 6px; }
 
-  .toast {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 10px 14px;
-    font-size: 11px;
-    color: var(--fg);
-    min-width: 200px;
-    max-width: 320px;
-    animation: slideIn 0.2s ease-out;
-    pointer-events: auto;
-  }
+input, textarea, select {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 13px;
+  padding: 8px 11px;
+  outline: none;
+  transition: border-color 0.15s;
+  appearance: none;
+}
+input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34,197,94,0.1); }
+input::placeholder, textarea::placeholder { color: var(--fg3); }
+textarea { resize: vertical; min-height: 80px; }
+select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 32px; cursor: pointer; }
+select option { background: var(--surface); }
 
-  .toast.success { border-left: 3px solid var(--accent); }
-  .toast.error   { border-left: 3px solid var(--danger); }
+/* Schedule type toggle */
+.sched-toggle { display: flex; gap: 6px; margin-bottom: 16px; }
+.sched-tab {
+  flex: 1; padding: 7px; text-align: center;
+  font-size: 11px; font-weight: 600; font-family: var(--font);
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  cursor: pointer; color: var(--fg2); transition: all 0.15s;
+}
+.sched-tab.active { background: rgba(34,197,94,0.1); border-color: var(--accent); color: var(--accent); }
 
-  @keyframes slideIn {
-    from { transform: translateX(20px); opacity: 0; }
-    to   { transform: translateX(0);    opacity: 1; }
-  }
+.sched-panel { display: none; }
+.sched-panel.active { display: block; }
 
-  @keyframes fadeOut {
-    from { opacity: 1; }
-    to   { opacity: 0; }
-  }
+/* Helper text */
+.helper { font-size: 10px; color: var(--fg3); margin-top: 4px; }
 
-  .toast.dying { animation: fadeOut 0.3s ease-in forwards; }
+/* Modal actions */
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
 
-  /* ── Refresh bar ── */
-  .toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
-  }
+.btn { padding: 8px 16px; border-radius: var(--r); font-size: 12px; font-weight: 600; font-family: var(--font); cursor: pointer; border: none; transition: all 0.15s; }
+.btn-primary { background: var(--accent); color: #000; }
+.btn-primary:hover { background: var(--accent2); }
+.btn-secondary { background: var(--surface2); color: var(--fg2); border: 1px solid var(--border2); }
+.btn-secondary:hover { color: var(--fg); border-color: var(--fg3); }
+.btn-danger-outline { background: transparent; color: var(--danger); border: 1px solid rgba(239,68,68,0.3); }
+.btn-danger-outline:hover { background: rgba(239,68,68,0.08); border-color: var(--danger); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-  .refresh-note {
-    font-size: 10px;
-    color: var(--muted);
-  }
+/* Invite modal */
+.invite-url-box {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  margin-bottom: 8px;
+}
+.invite-url-text { flex: 1; font-size: 11px; color: var(--fg2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.copy-btn { padding: 4px 10px; font-size: 11px; font-weight: 600; font-family: var(--font); background: var(--surface2); border: 1px solid var(--border2); border-radius: 4px; color: var(--fg); cursor: pointer; white-space: nowrap; transition: all 0.15s; }
+.copy-btn:hover { border-color: var(--accent); color: var(--accent); }
 
-  @media (max-width: 600px) {
-    .form-row { grid-template-columns: 1fr; }
-    .col-status, .col-channel { display: none; }
-  }
+.invite-steps { font-size: 11px; color: var(--fg2); line-height: 1.8; }
+.invite-steps span { display: block; padding: 2px 0; }
+.invite-steps strong { color: var(--fg); }
 
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
-  }
+/* Event detail modal */
+.event-detail-field { margin-bottom: 12px; }
+.event-detail-label { font-size: 10px; font-weight: 600; letter-spacing: 0.04em; color: var(--fg3); text-transform: uppercase; margin-bottom: 3px; }
+.event-detail-value { font-size: 12px; color: var(--fg); }
+.event-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 600;
+}
+.event-tag.once { background: rgba(34,197,94,0.12); color: var(--accent); }
+.event-tag.recurring { background: rgba(245,158,11,0.12); color: var(--amber); }
+
+/* ── Toast ── */
+#toasts {
+  position: fixed; bottom: 20px; right: 20px;
+  display: flex; flex-direction: column; gap: 8px;
+  z-index: 200; pointer-events: none;
+}
+.toast {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: var(--r); padding: 10px 14px;
+  font-size: 12px; min-width: 220px; max-width: 320px;
+  animation: toastIn 0.2s ease-out;
+  pointer-events: auto;
+}
+.toast.success { border-left: 2px solid var(--accent); }
+.toast.error { border-left: 2px solid var(--danger); }
+.toast-icon { width: 16px; height: 16px; flex-shrink: 0; }
+@keyframes toastIn { from { transform: translateX(16px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateX(8px); } }
+.toast.dying { animation: toastOut 0.25s ease-in forwards; }
+
+/* ── Scrollbars ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ── Loading skeleton ── */
+.skeleton { background: linear-gradient(90deg, var(--surface2) 25%, var(--surface3) 50%, var(--surface2) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: var(--r); }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
 </style>
 </head>
 <body>
-<div class="shell">
 
-  <!-- Header -->
-  <header>
-    <div class="logo">
-      <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path d="M4 6 L4 18 Q4 24 10 24 L18 24 Q24 24 24 18 L24 10 L20 4 L16 8 L12 8 L8 4 Z" fill="#1E293B" stroke="#475569" stroke-width="1.2"/>
-        <circle cx="10.5" cy="14" r="1.5" fill="#22C55E"/>
-        <circle cx="17.5" cy="14" r="1.5" fill="#22C55E"/>
-        <path d="M11 19 Q14 21 17 19" stroke="#475569" stroke-width="1" stroke-linecap="round" fill="none"/>
-        <path d="M8 8 L6 4" stroke="#475569" stroke-width="1.2" stroke-linecap="round"/>
-        <path d="M12 8 L12 4" stroke="#475569" stroke-width="1.2" stroke-linecap="round"/>
-        <path d="M20 10 L24 8" stroke="#475569" stroke-width="1.2" stroke-linecap="round"/>
-        <path d="M20 14 L24 14" stroke="#475569" stroke-width="1" stroke-linecap="round" stroke-dasharray="1.5 2"/>
+<canvas id="dot-canvas"></canvas>
+
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
+        <path d="M3 5 L3 15 Q3 20 8 20 L14 20 Q19 20 19 15 L19 8 L16 3 L13 6 L9 6 L6 3 Z" fill="#1E293B" stroke="#334155" stroke-width="1"/>
+        <circle cx="8.5" cy="12" r="1.2" fill="#22C55E"/>
+        <circle cx="13.5" cy="12" r="1.2" fill="#22C55E"/>
+        <path d="M9 16 Q11 17.5 13 16" stroke="#475569" stroke-width="0.8" stroke-linecap="round" fill="none"/>
       </svg>
-      <span class="logo-text">Tabby<span>Announce</span></span>
+      <span class="logo-name">Tabby<span>Announce</span></span>
     </div>
-    <div class="status-badge" id="status-badge" aria-live="polite">
-      <div class="status-dot" id="status-dot"></div>
-      <span id="status-text">connecting...</span>
-    </div>
-  </header>
 
-  <!-- Add form -->
-  <div class="section">
-    <div class="section-title">New Announcement</div>
-    <div class="add-form">
-      <div class="form-row">
-        <div>
-          <label for="f-channel">Channel ID or Link</label>
-          <input id="f-channel" type="text" placeholder="123456789 or discord.com/channels/..." autocomplete="off">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Servers</div>
+      <div class="server-list" id="server-list">
+        <div class="server-empty">Loading servers...</div>
+      </div>
+      <div style="padding: 6px 8px;">
+        <button class="add-server-btn" id="add-server-btn" aria-label="Add bot to server">
+          <div class="add-server-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          </div>
+          Add to server
+        </button>
+      </div>
+    </div>
+
+    <div class="sidebar-section" id="channels-section" style="display:none; flex:1; min-height:0; display:none; flex-direction:column;">
+      <div class="sidebar-label" id="channels-label">Channels</div>
+      <div class="channel-list" id="channel-list"></div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <header class="header">
+      <div class="header-left">
+        <div class="breadcrumb">
+          <span id="breadcrumb-server" style="color:var(--fg3)">All servers</span>
+          <span class="breadcrumb-sep" id="breadcrumb-sep" style="display:none">›</span>
+          <span class="breadcrumb-active" id="breadcrumb-channel" style="display:none"></span>
         </div>
-        <div>
-          <label for="f-schedule">Schedule</label>
-          <input id="f-schedule" type="text" placeholder="daily 9am · monday 1:30pm · 2026-12-25 12:00" autocomplete="off">
+      </div>
+      <div class="header-right">
+        <div class="status-pill">
+          <div class="status-dot" id="status-dot"></div>
+          <span id="status-text">connecting...</span>
+        </div>
+        <button class="btn-icon" id="refresh-btn" title="Refresh" aria-label="Refresh">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="calendar-wrap">
+      <div class="cal-toolbar">
+        <div class="cal-nav">
+          <button class="btn-icon" id="cal-prev" aria-label="Previous">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <span class="cal-title" id="cal-title"></span>
+          <button class="btn-icon" id="cal-next" aria-label="Next">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+          <button class="btn-icon" id="cal-today" title="Today" style="font-size:10px;font-family:var(--font);width:auto;padding:0 10px;font-weight:600;color:var(--fg2)">Today</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="cal-view-tabs">
+            <button class="view-tab active" data-view="dayGridMonth">Month</button>
+            <button class="view-tab" data-view="timeGridWeek">Week</button>
+            <button class="view-tab" data-view="timeGridDay">Day</button>
+          </div>
+          <button class="btn-new" id="new-btn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            New
+          </button>
         </div>
       </div>
-      <div class="form-full">
-        <label for="f-message">Message Content</label>
-        <textarea id="f-message" placeholder="What should the bot post?"></textarea>
-      </div>
-      <div class="form-actions">
-        <button class="btn-ghost" id="btn-clear" type="button">Clear</button>
-        <button class="btn-primary" id="btn-add" type="button">Add Announcement</button>
-      </div>
-    </div>
-  </div>
 
-  <!-- Schedule table -->
-  <div class="section">
-    <div class="toolbar">
-      <div class="section-title" style="margin-bottom:0">Scheduled Announcements</div>
-      <div class="refresh-note" id="refresh-note"></div>
-    </div>
-    <div class="table-wrap">
-      <table aria-label="Scheduled announcements">
-        <thead>
-          <tr>
-            <th class="col-channel">Channel</th>
-            <th class="col-schedule">Schedule</th>
-            <th class="col-message">Message</th>
-            <th class="col-status">Last Sent</th>
-            <th class="col-actions"></th>
-          </tr>
-        </thead>
-        <tbody id="schedule-tbody">
-          <tr class="loading-row"><td colspan="5">loading...</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+      <div id="calendar-container"></div>
 
+      <div class="upcoming-strip" id="upcoming-strip"></div>
+    </div>
+  </main>
 </div>
 
-<div id="toast-container" aria-live="polite"></div>
+<!-- Create/Edit Announcement Modal -->
+<div class="modal-backdrop" id="create-modal" role="dialog" aria-modal="true" aria-labelledby="create-title">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="create-title">New Announcement</h2>
+      <button class="modal-close" id="create-close" aria-label="Close">&times;</button>
+    </div>
+
+    <div class="form-group">
+      <label for="f-channel">Channel</label>
+      <select id="f-channel">
+        <option value="">Select a channel...</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Schedule Type</label>
+      <div class="sched-toggle">
+        <button class="sched-tab active" data-tab="once">One-time</button>
+        <button class="sched-tab" data-tab="recurring">Recurring</button>
+      </div>
+    </div>
+
+    <div class="sched-panel active" id="panel-once">
+      <div class="form-row">
+        <div>
+          <label for="f-date">Date</label>
+          <input type="date" id="f-date">
+        </div>
+        <div>
+          <label for="f-time">Time</label>
+          <input type="time" id="f-time" value="09:00">
+        </div>
+      </div>
+    </div>
+
+    <div class="sched-panel" id="panel-recurring">
+      <div class="form-row">
+        <div>
+          <label for="f-recur-type">Frequency</label>
+          <select id="f-recur-type">
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly (day)</option>
+          </select>
+        </div>
+        <div id="f-day-wrap">
+          <label for="f-recur-day">Day</label>
+          <select id="f-recur-day">
+            <option value="monday">Monday</option>
+            <option value="tuesday">Tuesday</option>
+            <option value="wednesday">Wednesday</option>
+            <option value="thursday">Thursday</option>
+            <option value="friday">Friday</option>
+            <option value="saturday">Saturday</option>
+            <option value="sunday">Sunday</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="f-recur-time">Time</label>
+        <input type="time" id="f-recur-time" value="09:00">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="f-message">Message</label>
+      <textarea id="f-message" placeholder="What should the bot post?"></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-danger-outline" id="delete-btn" style="display:none;margin-right:auto">Delete</button>
+      <button class="btn btn-secondary" id="create-cancel">Cancel</button>
+      <button class="btn btn-primary" id="create-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add to Server Modal -->
+<div class="modal-backdrop" id="invite-modal" role="dialog" aria-modal="true" aria-labelledby="invite-title">
+  <div class="modal" style="width:420px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="invite-title">Add Bot to Server</h2>
+      <button class="modal-close" id="invite-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="invite-url-box">
+      <span class="invite-url-text" id="invite-url-text">Loading invite link...</span>
+      <button class="copy-btn" id="copy-invite">Copy</button>
+    </div>
+    <p class="helper" style="margin-bottom:16px">Open this link in your browser while logged into Discord as a server admin.</p>
+    <div class="invite-steps">
+      <span><strong>1.</strong> Copy the link above and open it</span>
+      <span><strong>2.</strong> Select the server from the dropdown</span>
+      <span><strong>3.</strong> Click Authorize</span>
+      <span><strong>4.</strong> Come back here and refresh — the server will appear in the sidebar</span>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="open-invite">Open Link</button>
+    </div>
+  </div>
+</div>
+
+<!-- Event Detail Modal -->
+<div class="modal-backdrop" id="event-modal" role="dialog" aria-modal="true" aria-labelledby="event-title">
+  <div class="modal" style="width:380px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="event-title">Announcement</h2>
+      <button class="modal-close" id="event-close" aria-label="Close">&times;</button>
+    </div>
+    <div id="event-detail-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger-outline" id="event-delete" style="margin-right:auto">Delete</button>
+      <button class="btn btn-secondary" id="event-cancel">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts" aria-live="polite"></div>
 
 <script>
-  // ── Helpers ──────────────────────────────────────────────
+// ────────────────────────────────────────────────
+// Dot canvas background
+// ────────────────────────────────────────────────
+(function() {
+  const canvas = document.getElementById('dot-canvas');
+  const ctx = canvas.getContext('2d');
+  const mouse = { x: -9999, y: -9999 };
+  const SPACING = 28, BASE_R = 1, GLOW_R = 140;
 
-  function toast(msg, type = 'success') {
-    const el = document.createElement('div');
-    el.className = `toast ${type}`;
-    el.textContent = msg;
-    document.getElementById('toast-container').appendChild(el);
-    setTimeout(() => {
-      el.classList.add('dying');
-      el.addEventListener('animationend', () => el.remove());
-    }, 3500);
-  }
+  function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
 
-  function truncateChannel(val) {
-    if (!val) return '—';
-    // Extract ID from link if present
-    const m = val.match(/channels\/\d+\/(\d+)/);
-    const id = m ? m[1] : val;
-    return id.length > 20 ? id.slice(0, 18) + '…' : id;
-  }
-
-  function formatStatus(val) {
-    if (!val) return { text: '—', cls: '' };
-    // "Posted at 2026-06-18T09:00:00.000Z"
-    const m = val.match(/Posted at (.+)/);
-    if (m) {
-      const d = new Date(m[1]);
-      if (!isNaN(d)) {
-        const rel = formatRelative(d);
-        return { text: rel, cls: 'posted', title: d.toLocaleString() };
+  let raf;
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (let x = SPACING / 2; x < canvas.width; x += SPACING) {
+      for (let y = SPACING / 2; y < canvas.height; y += SPACING) {
+        const dx = mouse.x - x, dy = mouse.y - y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const prox = Math.max(0, 1 - dist / GLOW_R);
+        const alpha = 0.12 + prox * 0.55;
+        const r = BASE_R + prox * 1.8;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fillStyle = prox > 0.05
+          ? `rgba(34,197,94,${alpha})`
+          : `rgba(51,65,85,${alpha})`;
+        ctx.fill();
       }
     }
-    return { text: val, cls: '' };
+    raf = requestAnimationFrame(draw);
   }
 
-  function formatRelative(date) {
-    const diff = Date.now() - date.getTime();
-    const mins  = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days  = Math.floor(diff / 86400000);
-    if (mins < 1)    return 'just now';
-    if (mins < 60)   return `${mins}m ago`;
-    if (hours < 24)  return `${hours}h ago`;
-    if (days < 7)    return `${days}d ago`;
-    return date.toLocaleDateString();
+  window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+  window.addEventListener('resize', resize);
+  resize();
+  draw();
+
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    cancelAnimationFrame(raf);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
   }
+})();
 
-  // ── Status polling ────────────────────────────────────────
+// ────────────────────────────────────────────────
+// State
+// ────────────────────────────────────────────────
+let calendar;
+let allSchedules = [];
+let activeGuildId = null;
+let activeChannelId = null;
+let editingRowNumber = null;
+let currentDateClick = null;
+let inviteUrl = '';
 
-  async function pollStatus() {
-    try {
-      const r = await fetch('/api/status');
-      const d = await r.json();
-      const dot  = document.getElementById('status-dot');
-      const text = document.getElementById('status-text');
-      if (!d.configured) {
-        dot.className = 'status-dot offline';
-        text.textContent = `setup needed · missing: ${d.missing.join(', ')}`;
-      } else if (d.online) {
-        dot.className = 'status-dot online';
-        text.textContent = d.tag + (d.jobs ? ` · ${d.jobs} job${d.jobs !== 1 ? 's' : ''}` : '');
-      } else {
-        dot.className = 'status-dot offline';
-        text.textContent = 'offline';
-      }
-    } catch {
-      document.getElementById('status-dot').className = 'status-dot offline';
-      document.getElementById('status-text').textContent = 'unreachable';
+// ────────────────────────────────────────────────
+// Toast
+// ────────────────────────────────────────────────
+function toast(msg, type = 'success') {
+  const icons = {
+    success: `<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>`,
+    error:   `<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>`,
+  };
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = (icons[type] || '') + `<span>${msg}</span>`;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => {
+    el.classList.add('dying');
+    el.addEventListener('animationend', () => el.remove(), { once: true });
+  }, 3500);
+}
+
+// ────────────────────────────────────────────────
+// Status
+// ────────────────────────────────────────────────
+async function pollStatus() {
+  try {
+    const d = await fetch('/api/status').then(r => r.json());
+    const dot = document.getElementById('status-dot');
+    const txt = document.getElementById('status-text');
+    if (!d.configured) {
+      dot.className = 'status-dot offline';
+      txt.textContent = `setup needed`;
+    } else if (d.online) {
+      dot.className = 'status-dot online';
+      txt.textContent = d.tag + (d.jobs ? ` · ${d.jobs} active` : '');
+    } else {
+      dot.className = 'status-dot offline';
+      txt.textContent = 'offline';
     }
-  }
+  } catch { document.getElementById('status-dot').className = 'status-dot offline'; }
+}
 
-  // ── Load schedules ────────────────────────────────────────
-
-  async function loadSchedules() {
-    const tbody = document.getElementById('schedule-tbody');
-    try {
-      const r = await fetch('/api/schedules');
-      if (!r.ok) throw new Error(await r.text());
-      const rows = await r.json();
-
-      const note = document.getElementById('refresh-note');
-      note.textContent = `refreshed ${new Date().toLocaleTimeString()}`;
-
-      if (rows.length === 0) {
-        tbody.innerHTML = `
-          <tr><td colspan="5">
-            <div class="empty">
-              <div class="empty-cat">=^..^=</div>
-              <p>No announcements yet. Add one above.</p>
-            </div>
-          </td></tr>`;
-        return;
-      }
-
-      tbody.innerHTML = rows.map(row => {
-        const ch = truncateChannel(row.channel);
-        const sch = row.schedule || '—';
-        const msg = row.message ? row.message.replace(/</g, '&lt;') : '—';
-        const { text: statusText, cls: statusCls, title: statusTitle } = formatStatus(row.status);
-        return `
-          <tr data-row="${row.rowNumber}">
-            <td class="col-channel"><div class="cell-truncate cell-channel" title="${(row.channel||'').replace(/"/g,'&quot;')}">${ch}</div></td>
-            <td class="col-schedule"><span class="cell-schedule">${sch}</span></td>
-            <td class="col-message"><div class="cell-message">${msg}</div></td>
-            <td class="col-status"><span class="cell-status ${statusCls}" title="${statusTitle||''}">${statusText}</span></td>
-            <td class="col-actions">
-              <button class="btn-danger" aria-label="Delete row ${row.rowNumber}" onclick="deleteRow(${row.rowNumber}, this)">del</button>
-            </td>
-          </tr>`;
-      }).join('');
-    } catch (e) {
-      tbody.innerHTML = `<tr class="loading-row"><td colspan="5">error: ${e.message}</td></tr>`;
-      toast('Failed to load schedules', 'error');
-    }
-  }
-
-  // ── Add ───────────────────────────────────────────────────
-
-  document.getElementById('btn-add').addEventListener('click', async () => {
-    const channel  = document.getElementById('f-channel').value.trim();
-    const schedule = document.getElementById('f-schedule').value.trim();
-    const message  = document.getElementById('f-message').value.trim();
-
-    if (!channel || !schedule || !message) {
-      toast('Fill in all three fields', 'error');
+// ────────────────────────────────────────────────
+// Servers
+// ────────────────────────────────────────────────
+async function loadServers() {
+  try {
+    const guilds = await fetch('/api/servers').then(r => r.json());
+    const el = document.getElementById('server-list');
+    if (!guilds.length) {
+      el.innerHTML = `<div class="server-empty">Bot not in any servers yet.</div>`;
       return;
     }
+    el.innerHTML = guilds.map(g => {
+      const initials = g.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+      const icon = g.icon ? `<img src="${g.icon}" alt="${g.name}" loading="lazy" onerror="this.parentElement.textContent='${initials}'">` : initials;
+      return `<div class="server-item" data-id="${g.id}" data-name="${g.name.replace(/"/g,'&quot;')}">
+        <div class="server-avatar">${icon}</div>
+        <div class="server-info">
+          <div class="server-name">${g.name}</div>
+          <div class="server-members">${g.memberCount > 0 ? g.memberCount.toLocaleString() + ' members' : ''}</div>
+        </div>
+      </div>`;
+    }).join('');
+    el.querySelectorAll('.server-item').forEach(item => {
+      item.addEventListener('click', () => selectServer(item.dataset.id, item.dataset.name));
+    });
+  } catch (e) {
+    document.getElementById('server-list').innerHTML = `<div class="server-empty">Could not load servers.</div>`;
+  }
+}
 
-    const btn = document.getElementById('btn-add');
-    btn.disabled = true;
-    btn.textContent = 'Adding...';
+async function selectServer(guildId, name) {
+  activeGuildId = guildId;
+  activeChannelId = null;
 
-    try {
-      const r = await fetch('/api/schedules', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channel, schedule, message }),
-      });
-      if (!r.ok) {
-        const d = await r.json();
-        throw new Error(d.error || r.statusText);
-      }
-      document.getElementById('f-channel').value  = '';
-      document.getElementById('f-schedule').value = '';
-      document.getElementById('f-message').value  = '';
-      toast('Announcement added');
-      loadSchedules();
-    } catch (e) {
-      toast(`Add failed: ${e.message}`, 'error');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Add Announcement';
-    }
-  });
+  document.querySelectorAll('.server-item').forEach(i => i.classList.toggle('active', i.dataset.id === guildId));
+  document.getElementById('breadcrumb-server').textContent = name;
+  document.getElementById('breadcrumb-server').style.color = 'var(--fg)';
+  document.getElementById('breadcrumb-sep').style.display = '';
+  document.getElementById('breadcrumb-channel').style.display = 'none';
 
-  document.getElementById('btn-clear').addEventListener('click', () => {
-    document.getElementById('f-channel').value  = '';
-    document.getElementById('f-schedule').value = '';
-    document.getElementById('f-message').value  = '';
-  });
+  const sec = document.getElementById('channels-section');
+  sec.style.display = 'flex';
+  document.getElementById('channels-label').textContent = name;
+  document.getElementById('channel-list').innerHTML = '<div class="channel-empty">Loading...</div>';
 
-  // ── Delete ────────────────────────────────────────────────
-
-  async function deleteRow(rowNumber, btn) {
-    if (!confirm('Delete this announcement?')) return;
-    btn.disabled = true;
-    btn.textContent = '...';
-    try {
-      const r = await fetch(`/api/schedules/${rowNumber}`, { method: 'DELETE' });
-      if (!r.ok) {
-        const d = await r.json();
-        throw new Error(d.error || r.statusText);
-      }
-      const row = document.querySelector(`tr[data-row="${rowNumber}"]`);
-      if (row) row.remove();
-      toast('Announcement deleted');
-      // Re-render in case table is now empty
-      loadSchedules();
-    } catch (e) {
-      toast(`Delete failed: ${e.message}`, 'error');
-      btn.disabled = false;
-      btn.textContent = 'del';
-    }
+  try {
+    const channels = await fetch(`/api/servers/${guildId}/channels`).then(r => r.json());
+    renderChannels(channels);
+  } catch {
+    document.getElementById('channel-list').innerHTML = '<div class="channel-empty">Could not load channels.</div>';
   }
 
-  // ── Init ──────────────────────────────────────────────────
+  refreshCalendar();
+}
 
-  pollStatus();
-  setInterval(pollStatus, 10000);
+function renderChannels(channels) {
+  const el = document.getElementById('channel-list');
+  if (!channels.length) {
+    el.innerHTML = '<div class="channel-empty">No text channels found.</div>';
+    return;
+  }
+  const grouped = {};
+  channels.forEach(c => {
+    const cat = c.category || 'Channels';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(c);
+  });
+  el.innerHTML = Object.entries(grouped).map(([cat, chs]) =>
+    `<div class="channel-category">${cat}</div>` +
+    chs.map(c => `<div class="channel-item" data-id="${c.id}" data-name="${c.name}">
+      <span class="channel-hash">#</span>${c.name}
+    </div>`).join('')
+  ).join('');
 
-  loadSchedules();
-  setInterval(loadSchedules, 30000);
+  el.querySelectorAll('.channel-item').forEach(item => {
+    item.addEventListener('click', () => {
+      activeChannelId = item.dataset.id;
+      el.querySelectorAll('.channel-item').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+      document.getElementById('breadcrumb-channel').textContent = '#' + item.dataset.name;
+      document.getElementById('breadcrumb-channel').style.display = '';
+      refreshCalendar();
+    });
+  });
+}
+
+// ────────────────────────────────────────────────
+// Schedules → Calendar events
+// ────────────────────────────────────────────────
+function parseTimeStr(t) {
+  if (!t) return '09:00';
+  const m = t.match(/^(\d{1,2}):?(\d{2})?\s*(am|pm)?$/i);
+  if (!m) return '09:00';
+  let h = parseInt(m[1]);
+  const min = parseInt(m[2] || '0');
+  const ap = (m[3] || '').toLowerCase();
+  if (ap === 'pm' && h < 12) h += 12;
+  if (ap === 'am' && h === 12) h = 0;
+  return `${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}`;
+}
+
+function scheduleToEvent(row) {
+  const s = (row.schedule || '').toLowerCase().trim();
+  const parts = s.split(/\s+/);
+  const title = (row.message || 'Announcement').substring(0, 50);
+  const DAYS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+
+  if (parts[0] === 'daily') {
+    const t = parseTimeStr(parts[1]);
+    return { id: String(row.rowNumber), title, startTime: t, daysOfWeek: [0,1,2,3,4,5,6], classNames: ['fc-event-recurring'], extendedProps: { row, type: 'recurring' } };
+  }
+  if (DAYS.includes(parts[0])) {
+    const t = parseTimeStr(parts[1]);
+    return { id: String(row.rowNumber), title, startTime: t, daysOfWeek: [DAYS.indexOf(parts[0])], classNames: ['fc-event-recurring'], extendedProps: { row, type: 'recurring' } };
+  }
+  const date = new Date(row.schedule || '');
+  if (!isNaN(date.getTime())) {
+    return { id: String(row.rowNumber), title, start: date.toISOString(), classNames: ['fc-event-once'], extendedProps: { row, type: 'once' } };
+  }
+  return null;
+}
+
+async function loadSchedules() {
+  try {
+    const rows = await fetch('/api/schedules').then(r => r.json());
+    if (rows.error) return;
+    allSchedules = rows;
+    refreshCalendar();
+    renderUpcoming(rows);
+  } catch {}
+}
+
+function getFilteredSchedules() {
+  if (!activeGuildId) return allSchedules;
+  return allSchedules;
+}
+
+function refreshCalendar() {
+  if (!calendar) return;
+  const events = getFilteredSchedules().map(scheduleToEvent).filter(Boolean);
+  calendar.removeAllEvents();
+  events.forEach(e => calendar.addEvent(e));
+}
+
+function renderUpcoming(rows) {
+  const strip = document.getElementById('upcoming-strip');
+  if (!rows.length) { strip.innerHTML = ''; return; }
+  strip.innerHTML = rows.slice(0, 8).map(row => {
+    const s = (row.schedule || '').toLowerCase();
+    const isRecurring = !s.match(/^\d{4}/);
+    const label = (row.message || '').substring(0, 36) + ((row.message || '').length > 36 ? '…' : '');
+    return `<div class="upcoming-chip" data-row="${row.rowNumber}">
+      <div class="upcoming-dot ${isRecurring ? 'recurring' : 'once'}"></div>
+      <span>${label}</span>
+      <span class="upcoming-time">${row.schedule || ''}</span>
+    </div>`;
+  }).join('');
+  strip.querySelectorAll('.upcoming-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const row = allSchedules.find(r => r.rowNumber === parseInt(chip.dataset.row));
+      if (row) openEventDetail(row);
+    });
+  });
+}
+
+// ────────────────────────────────────────────────
+// FullCalendar init
+// ────────────────────────────────────────────────
+function initCalendar() {
+  const el = document.getElementById('calendar-container');
+  calendar = new FullCalendar.Calendar(el, {
+    initialView: 'dayGridMonth',
+    headerToolbar: false,
+    height: '100%',
+    selectable: true,
+    dayMaxEvents: 3,
+    eventDisplay: 'block',
+    dateClick(info) { openCreateModal(info.dateStr); },
+    eventClick(info) { openEventDetail(info.event.extendedProps.row); },
+    datesSet(info) {
+      document.getElementById('cal-title').textContent =
+        info.view.title;
+    },
+  });
+  calendar.render();
+  document.getElementById('cal-title').textContent = calendar.view.title;
+}
+
+// Calendar nav
+document.getElementById('cal-prev').addEventListener('click', () => { calendar.prev(); });
+document.getElementById('cal-next').addEventListener('click', () => { calendar.next(); });
+document.getElementById('cal-today').addEventListener('click', () => { calendar.today(); });
+document.querySelectorAll('.view-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    calendar.changeView(tab.dataset.view);
+  });
+});
+
+// ────────────────────────────────────────────────
+// Create modal
+// ────────────────────────────────────────────────
+function openCreateModal(dateStr) {
+  currentDateClick = dateStr || null;
+  editingRowNumber = null;
+  document.getElementById('create-title').textContent = 'New Announcement';
+  document.getElementById('delete-btn').style.display = 'none';
+  document.getElementById('create-save').textContent = 'Save';
+
+  // Pre-fill date
+  if (dateStr) document.getElementById('f-date').value = dateStr;
+  else document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('f-time').value = '09:00';
+  document.getElementById('f-message').value = '';
+
+  // Pre-fill channel
+  populateChannelDropdown(activeChannelId);
+
+  // Reset to one-time
+  setSchedTab('once');
+
+  openModal('create-modal');
+  document.getElementById('f-channel').focus();
+}
+
+function populateChannelDropdown(preselect) {
+  const sel = document.getElementById('f-channel');
+  const items = document.querySelectorAll('.channel-item');
+  sel.innerHTML = '<option value="">Select a channel...</option>';
+  items.forEach(item => {
+    const opt = document.createElement('option');
+    opt.value = item.dataset.id;
+    opt.textContent = '#' + item.dataset.name;
+    if (preselect && item.dataset.id === preselect) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  if (!items.length) {
+    sel.innerHTML = '<option value="">— select a server first —</option>';
+  }
+}
+
+function setSchedTab(tab) {
+  document.querySelectorAll('.sched-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('panel-once').classList.toggle('active', tab === 'once');
+  document.getElementById('panel-recurring').classList.toggle('active', tab === 'recurring');
+}
+
+document.querySelectorAll('.sched-tab').forEach(tab => {
+  tab.addEventListener('click', () => setSchedTab(tab.dataset.tab));
+});
+
+document.getElementById('f-recur-type').addEventListener('change', function() {
+  document.getElementById('f-day-wrap').style.display = this.value === 'weekly' ? '' : 'none';
+});
+
+function buildScheduleStr() {
+  const isOnce = document.getElementById('panel-once').classList.contains('active');
+  if (isOnce) {
+    const d = document.getElementById('f-date').value;
+    const t = document.getElementById('f-time').value;
+    return `${d} ${t}`;
+  }
+  const type = document.getElementById('f-recur-type').value;
+  const time = document.getElementById('f-recur-time').value;
+  const [h, m] = time.split(':');
+  const ampm = parseInt(h) >= 12 ? 'pm' : 'am';
+  const h12 = parseInt(h) % 12 || 12;
+  const timeStr = `${h12}:${m}${ampm}`;
+  if (type === 'daily') return `daily ${timeStr}`;
+  const day = document.getElementById('f-recur-day').value;
+  return `${day} ${timeStr}`;
+}
+
+document.getElementById('create-save').addEventListener('click', async () => {
+  const channel = document.getElementById('f-channel').value;
+  const message = document.getElementById('f-message').value.trim();
+  if (!channel) { toast('Select a channel first', 'error'); return; }
+  if (!message) { toast('Message cannot be empty', 'error'); return; }
+  const sched = buildScheduleStr();
+  const btn = document.getElementById('create-save');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    const r = await fetch('/api/schedules', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channel, schedule: sched, message }),
+    });
+    if (!r.ok) throw new Error((await r.json()).error);
+    closeModal('create-modal');
+    toast('Announcement saved');
+    loadSchedules();
+  } catch (e) {
+    toast(e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save';
+  }
+});
+
+document.getElementById('delete-btn').addEventListener('click', () => deleteRow(editingRowNumber));
+
+// ────────────────────────────────────────────────
+// Event detail modal
+// ────────────────────────────────────────────────
+function openEventDetail(row) {
+  const isRecurring = !((row.schedule || '').match(/^\d{4}/));
+  document.getElementById('event-detail-body').innerHTML = `
+    <div class="event-detail-field">
+      <div class="event-detail-label">Type</div>
+      <div><span class="event-tag ${isRecurring ? 'recurring' : 'once'}">${isRecurring ? 'Recurring' : 'One-time'}</span></div>
+    </div>
+    <div class="event-detail-field">
+      <div class="event-detail-label">Channel</div>
+      <div class="event-detail-value" style="color:var(--accent);font-size:11px">${row.channel || '—'}</div>
+    </div>
+    <div class="event-detail-field">
+      <div class="event-detail-label">Schedule</div>
+      <div class="event-detail-value">${row.schedule || '—'}</div>
+    </div>
+    <div class="event-detail-field">
+      <div class="event-detail-label">Message</div>
+      <div class="event-detail-value" style="white-space:pre-wrap;max-height:100px;overflow-y:auto;padding:8px;background:var(--bg);border-radius:4px;font-size:12px">${(row.message || '').replace(/</g,'&lt;')}</div>
+    </div>
+    ${row.status ? `<div class="event-detail-field"><div class="event-detail-label">Last Sent</div><div class="event-detail-value" style="color:var(--accent);font-size:11px">${row.status}</div></div>` : ''}
+  `;
+  document.getElementById('event-delete').onclick = () => deleteRow(row.rowNumber);
+  openModal('event-modal');
+}
+
+// ────────────────────────────────────────────────
+// Delete
+// ────────────────────────────────────────────────
+async function deleteRow(rowNumber) {
+  if (!confirm('Delete this announcement?')) return;
+  try {
+    const r = await fetch(`/api/schedules/${rowNumber}`, { method: 'DELETE' });
+    if (!r.ok) throw new Error((await r.json()).error);
+    closeModal('create-modal');
+    closeModal('event-modal');
+    toast('Deleted');
+    loadSchedules();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+// ────────────────────────────────────────────────
+// Invite modal
+// ────────────────────────────────────────────────
+document.getElementById('add-server-btn').addEventListener('click', async () => {
+  try {
+    const d = await fetch('/api/invite').then(r => r.json());
+    inviteUrl = d.url || '';
+    document.getElementById('invite-url-text').textContent = inviteUrl || 'Bot offline — start the bot first';
+  } catch {
+    inviteUrl = '';
+    document.getElementById('invite-url-text').textContent = 'Could not generate link';
+  }
+  openModal('invite-modal');
+});
+
+document.getElementById('copy-invite').addEventListener('click', () => {
+  if (!inviteUrl) return;
+  navigator.clipboard.writeText(inviteUrl).then(() => toast('Link copied'));
+});
+
+document.getElementById('open-invite').addEventListener('click', () => {
+  if (inviteUrl) window.open(inviteUrl, '_blank');
+});
+
+// ────────────────────────────────────────────────
+// Modal helpers
+// ────────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+['create-modal','invite-modal','event-modal'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('click', e => { if (e.target === el) closeModal(id); });
+});
+document.getElementById('create-close').addEventListener('click', () => closeModal('create-modal'));
+document.getElementById('create-cancel').addEventListener('click', () => closeModal('create-modal'));
+document.getElementById('invite-close').addEventListener('click', () => closeModal('invite-modal'));
+document.getElementById('event-close').addEventListener('click', () => closeModal('event-modal'));
+document.getElementById('event-cancel').addEventListener('click', () => closeModal('event-modal'));
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') ['create-modal','invite-modal','event-modal'].forEach(closeModal);
+});
+
+// ────────────────────────────────────────────────
+// New button
+// ────────────────────────────────────────────────
+document.getElementById('new-btn').addEventListener('click', () => openCreateModal(null));
+document.getElementById('refresh-btn').addEventListener('click', () => { loadServers(); loadSchedules(); toast('Refreshed'); });
+
+// ────────────────────────────────────────────────
+// Init
+// ────────────────────────────────────────────────
+initCalendar();
+pollStatus();
+setInterval(pollStatus, 10000);
+loadServers();
+loadSchedules();
+setInterval(loadSchedules, 30000);
 </script>
 </body>
 </html>

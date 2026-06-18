@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, ChannelType } = require('discord.js');
 const { GoogleSpreadsheet } = require('google-spreadsheet');
 const { OAuth2Client } = require('google-auth-library');
 const schedule = require('node-schedule');
@@ -251,6 +251,39 @@ app.delete('/api/schedules/:rowNumber', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+app.get('/api/servers', (req, res) => {
+  if (!client?.isReady()) return res.json([]);
+  const guilds = [...client.guilds.cache.values()].map(g => ({
+    id: g.id,
+    name: g.name,
+    icon: g.iconURL({ size: 64 }),
+    memberCount: g.memberCount || 0,
+  }));
+  res.json(guilds);
+});
+
+app.get('/api/servers/:guildId/channels', async (req, res) => {
+  if (!client?.isReady()) return res.status(503).json({ error: 'Bot offline' });
+  try {
+    const guild = client.guilds.cache.get(req.params.guildId);
+    if (!guild) return res.status(404).json({ error: 'Guild not found' });
+    await guild.channels.fetch();
+    const channels = [...guild.channels.cache.values()]
+      .filter(c => c.type === ChannelType.GuildText)
+      .map(c => ({ id: c.id, name: c.name, category: c.parent?.name || '' }))
+      .sort((a, b) => (a.category + a.name).localeCompare(b.category + b.name));
+    res.json(channels);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/invite', (req, res) => {
+  if (!client?.isReady()) return res.status(503).json({ error: 'Bot offline' });
+  const url = `https://discord.com/api/oauth2/authorize?client_id=${client.user.id}&permissions=2048&scope=bot`;
+  res.json({ url });
 });
 
 app.listen(3000, () => {
