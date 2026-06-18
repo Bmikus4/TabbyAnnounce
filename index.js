@@ -8,31 +8,31 @@ const path = require('path');
 
 const required_env = ['DISCORD_TOKEN', 'SPREADSHEET_ID', 'GOOGLE_AUTH_FILE'];
 const missing_env = required_env.filter(k => !process.env[k]);
-if (missing_env.length > 0) {
-  console.error(`Missing required environment variables: ${missing_env.join(', ')}`);
-  console.error('Copy .env.example to .env and fill in your values.');
-  process.exit(1);
+const configured = missing_env.length === 0;
+if (!configured) {
+  console.warn(`[tabby] Missing env vars: ${missing_env.join(', ')} — dashboard will start but bot is offline.`);
 }
 
 if (process.env.TIMEZONE) {
   process.env.TZ = process.env.TIMEZONE;
 }
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = configured ? new Client({ intents: [GatewayIntentBits.Guilds] }) : null;
 
-const serviceAccountAuth = new JWT({
+const serviceAccountAuth = configured ? new JWT({
   email: require(process.env.GOOGLE_AUTH_FILE).client_email,
   key: require(process.env.GOOGLE_AUTH_FILE).private_key,
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-});
+}) : null;
 
 function getSpreadsheetId(input) {
   const match = input.match(/\/d\/([a-zA-Z0-9-_]+)/);
   return match ? match[1] : input;
 }
 
-const spreadsheetId = getSpreadsheetId(process.env.SPREADSHEET_ID);
-const doc = new GoogleSpreadsheet(spreadsheetId, serviceAccountAuth);
+const doc = configured
+  ? new GoogleSpreadsheet(getSpreadsheetId(process.env.SPREADSHEET_ID), serviceAccountAuth)
+  : null;
 
 const scheduledJobs = new Map();
 
@@ -180,13 +180,16 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/api/status', (req, res) => {
   res.json({
-    online: client.isReady(),
-    tag: client.isReady() ? client.user.tag : null,
+    online: client ? client.isReady() : false,
+    tag: client && client.isReady() ? client.user.tag : null,
     jobs: scheduledJobs.size,
+    configured,
+    missing: missing_env,
   });
 });
 
 app.get('/api/schedules', async (req, res) => {
+  if (!configured) return res.status(503).json({ error: 'Bot not configured. Add credentials to .env.' });
   try {
     await doc.loadInfo();
     const sheet = doc.sheetsByIndex[0];
@@ -205,6 +208,7 @@ app.get('/api/schedules', async (req, res) => {
 });
 
 app.post('/api/schedules', async (req, res) => {
+  if (!configured) return res.status(503).json({ error: 'Bot not configured.' });
   try {
     const { channel, schedule: sched, message } = req.body;
     if (!channel || !sched || !message) {
@@ -224,6 +228,7 @@ app.post('/api/schedules', async (req, res) => {
 });
 
 app.delete('/api/schedules/:rowNumber', async (req, res) => {
+  if (!configured) return res.status(503).json({ error: 'Bot not configured.' });
   try {
     const rowNumber = parseInt(req.params.rowNumber);
     await doc.loadInfo();
@@ -248,10 +253,11 @@ app.listen(3000, () => {
 
 // --- Discord bot ---
 
-client.once('ready', () => {
-  console.log(`Bot online: ${client.user.tag}`);
-  checkSheet();
-  setInterval(checkSheet, 30 * 1000);
-});
-
-client.login(process.env.DISCORD_TOKEN);
+if (configured) {
+  client.once('ready', () => {
+    console.log(`Bot online: ${client.user.tag}`);
+    checkSheet();
+    setInterval(checkSheet, 30 * 1000);
+  });
+  client.login(process.env.DISCORD_TOKEN);
+}

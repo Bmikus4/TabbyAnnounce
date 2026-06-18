@@ -515,7 +515,10 @@
       const d = await r.json();
       const dot  = document.getElementById('status-dot');
       const text = document.getElementById('status-text');
-      if (d.online) {
+      if (!d.configured) {
+        dot.className = 'status-dot offline';
+        text.textContent = `setup needed · missing: ${d.missing.join(', ')}`;
+      } else if (d.online) {
         dot.className = 'status-dot online';
         text.textContent = d.tag + (d.jobs ? ` · ${d.jobs} job${d.jobs !== 1 ? 's' : ''}` : '');
       } else {

@@ -1,4 +1,6 @@
 @echo off
+title TabbyAnnounce
 cd /d %~dp0
-node index.js >> tabby.log 2>&1
+start "" http://localhost:3000
+node index.js
 pause
