@@ -17,7 +17,13 @@ if (process.env.TIMEZONE) {
   process.env.TZ = process.env.TIMEZONE;
 }
 
-const client = configured ? new Client({ intents: [GatewayIntentBits.Guilds] }) : null;
+const client = configured ? new Client({
+  intents: [GatewayIntentBits.Guilds],
+  presence: {
+    status: 'online',
+    activities: [{ name: 'your announcements', type: 3 }],
+  },
+}) : null;
 
 function getSpreadsheetId(input) {
   const match = input.match(/\/d\/([a-zA-Z0-9-_]+)/);
