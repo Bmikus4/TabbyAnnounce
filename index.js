@@ -1,12 +1,12 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits } = require('discord.js');
 const { GoogleSpreadsheet } = require('google-spreadsheet');
-const { JWT } = require('google-auth-library');
+const { OAuth2Client } = require('google-auth-library');
 const schedule = require('node-schedule');
 const express = require('express');
 const path = require('path');
 
-const required_env = ['DISCORD_TOKEN', 'SPREADSHEET_ID', 'GOOGLE_AUTH_FILE'];
+const required_env = ['DISCORD_TOKEN', 'SPREADSHEET_ID', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REFRESH_TOKEN'];
 const missing_env = required_env.filter(k => !process.env[k]);
 const configured = missing_env.length === 0;
 if (!configured) {
@@ -19,20 +19,20 @@ if (process.env.TIMEZONE) {
 
 const client = configured ? new Client({ intents: [GatewayIntentBits.Guilds] }) : null;
 
-const serviceAccountAuth = configured ? new JWT({
-  email: require(process.env.GOOGLE_AUTH_FILE).client_email,
-  key: require(process.env.GOOGLE_AUTH_FILE).private_key,
-  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-}) : null;
-
 function getSpreadsheetId(input) {
   const match = input.match(/\/d\/([a-zA-Z0-9-_]+)/);
   return match ? match[1] : input;
 }
 
-const doc = configured
-  ? new GoogleSpreadsheet(getSpreadsheetId(process.env.SPREADSHEET_ID), serviceAccountAuth)
-  : null;
+let doc = null;
+if (configured) {
+  const oauth2Client = new OAuth2Client(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+  );
+  oauth2Client.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
+  doc = new GoogleSpreadsheet(getSpreadsheetId(process.env.SPREADSHEET_ID), oauth2Client);
+}
 
 const scheduledJobs = new Map();
 
