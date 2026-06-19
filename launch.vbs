@@ -1,19 +1,34 @@
+Dim node, dir, fso, port, tries, f
+
+node = "C:\Users\thera\scoop\apps\nodejs\current\node.exe"
+dir  = "C:\Users\thera\TabbyAnnounce"
+
 Set WshShell = CreateObject("WScript.Shell")
-WshShell.CurrentDirectory = "C:\Users\thera\TabbyAnnounce"
-WshShell.Run "node index.js", 1, False
-WScript.Sleep 2500
-Dim fso, port
+WshShell.CurrentDirectory = dir
+
+' Delete old port file
 Set fso = CreateObject("Scripting.FileSystemObject")
-port = "3000"
-Dim tries : tries = 0
-Do While tries < 10
-    If fso.FileExists("C:\Users\thera\TabbyAnnounce\.port") Then
-        Dim f : Set f = fso.OpenTextFile("C:\Users\thera\TabbyAnnounce\.port", 1)
+If fso.FileExists(dir & "\.port") Then fso.DeleteFile dir & "\.port"
+
+' Launch bot in visible window
+WshShell.Run """" & node & """ index.js", 1, False
+
+' Wait for .port file (up to 20s)
+tries = 0
+port  = "3000"
+Do While tries < 20
+    WScript.Sleep 1000
+    If fso.FileExists(dir & "\.port") Then
+        Set f = fso.OpenTextFile(dir & "\.port", 1)
         port = Trim(f.ReadLine())
         f.Close
         Exit Do
     End If
-    WScript.Sleep 1000
     tries = tries + 1
 Loop
-WshShell.Run "http://localhost:" & port, 1, False
+
+If tries >= 20 Then
+    MsgBox "TabbyAnnounce failed to start. Check the console window for errors.", 16, "Launch Failed"
+Else
+    WshShell.Run "http://localhost:" & port
+End If
