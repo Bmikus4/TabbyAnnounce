@@ -286,9 +286,19 @@ app.get('/api/invite', (req, res) => {
   res.json({ url });
 });
 
-app.listen(3000, () => {
-  console.log('Dashboard: http://localhost:3000');
-});
+function startServer(port) {
+  const server = app.listen(port, () => {
+    fs.writeFileSync(path.join(__dirname, '.port'), String(port));
+    console.log(`Dashboard: http://localhost:${port}`);
+  });
+  server.on('error', e => {
+    if (e.code === 'EADDRINUSE') {
+      console.log(`Port ${port} in use, trying ${port + 1}`);
+      startServer(port + 1);
+    } else throw e;
+  });
+}
+startServer(3000);
 
 // --- Discord bot ---
 
